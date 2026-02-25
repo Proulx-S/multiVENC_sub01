@@ -38,7 +38,7 @@ dataFiles(1) = [];
 coilMethod = 'bartEspirit';
 for iFile = 1:length(dataFiles)
     fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
-    [outName,cropRange] = simpleRecon(fullfile(pwd, 'raw', dataFiles(iFile).name),coilMethod);
+    [outName,cropRange] = simpleRecon(fullfile(pwd, 'raw', dataFiles(iFile).name),coilMethod,0,0);
 end
 %% %%%%%%%%%%%%%%%%%%
 
