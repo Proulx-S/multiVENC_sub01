@@ -1,0 +1,4 @@
+# Ignore any subfolder
+*/
+
+*.pdf
