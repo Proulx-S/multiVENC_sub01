@@ -3,22 +3,64 @@ close all
 clc
 %figure('MenuBar', 'none','ToolBar', 'none');
 
-%%%%%%%%%%%%%%%
-%% Dependencies
-toolDir = '/scratch/users/Proulx-S/tools';
-bassReconDir = fullfile(toolDir, 'bassRecon');
-if ~exist(bassReconDir, 'dir')
-    fprintf('bassRecon repo not found. Cloning from GitHub...\n');
-    system(sprintf('cd %s && git clone https://github.com/Proulx-S/bassRecon.git', toolDir));
-    if ~exist(bassReconDir, 'dir')
-        error('Failed to clone bassRecon repository.');
-    end
-    fprintf('bassRecon cloned successfully.\n');
+
+
+
+projectName = 'multiVENC_sub01';
+%%%%%%%%%%%%%%%%%%%%%
+%% Set up environment
+%%%%%%%%%%%%%%%%%%%%%
+
+% Detect computing environment
+os   = char(java.lang.System.getProperty('os.name'));
+host = char(java.net.InetAddress.getLocalHost.getHostName);
+user = char(java.lang.System.getProperty('user.name'));
+
+% Setup folders
+if strcmp(os,'Linux') && strcmp(host,'takoyaki') && strcmp(user,'sebp')
+    envId = 1;
+    storageDrive = '/local/users/Proulx-S/db/';
+    scratchDrive = '/local/users/Proulx-S/db/';
+    projectCode    = fullfile(scratchDrive, projectName);        if ~exist(projectCode,'dir');    mkdir(projectCode);    end
+    projectStorage = fullfile(storageDrive, projectName);        if ~exist(projectStorage,'dir'); mkdir(projectStorage); end
+    projectScratch = fullfile(scratchDrive, projectName, 'tmp'); if ~exist(projectScratch,'dir'); mkdir(projectScratch); end
+    toolDir        = '/scratch/users/Proulx-S/tools';            if ~exist(toolDir,'dir');        mkdir(toolDir);        end
 else
-    fprintf('bassRecon repo already exists at %s\n', bassReconDir);
+    envId = 2;
+    storageDrive   = '/Users/sebastienproulx/';
+    scratchDrive   = '/Users/sebastienproulx/';
+    projectCode    = fullfile(scratchDrive, projectName);        if ~exist(projectCode,'dir');    mkdir(projectCode);    end
+    projectStorage = fullfile(storageDrive, projectName);        if ~exist(projectStorage,'dir'); mkdir(projectStorage); end
+    projectScratch = fullfile(scratchDrive, projectName, 'tmp'); if ~exist(projectScratch,'dir'); mkdir(projectScratch); end
+    toolDir        = '/Users/sebastienproulx/tools';             if ~exist(toolDir,'dir');        mkdir(toolDir);        end
 end
-addpath(genpath(bassReconDir));
-%% %%%%%%%%%%%%
+
+% Load dependencies and set paths
+%%% initial cloning of matlab util to get gitClone.m
+tool = 'util'; toolURL = 'https://github.com/Proulx-S/util.git';
+if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' toolURL ' ' fullfile(toolDir, tool)]); end; addpath(genpath(fullfile(toolDir,tool)))
+%%% matlab others
+tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; branch = '';
+gitClone(repoURL, fullfile(toolDir, tool), [], branch);
+tool = 'bassRecon'; repoURL = 'https://github.com/Proulx-S/bassRecon.git'; branch = '';
+gitClone(repoURL, fullfile(toolDir, tool), [], branch);
+
+%% %%%%%%%%%%%%%%%%%%
+disp(projectCode)
+disp(projectStorage)
+disp(projectScratch)
+info.project.code    = projectCode;
+info.project.storage = projectStorage;
+info.project.scratch = projectScratch;
+info.toClean = {};
+
+
+
+
+
+
+
+
 
 %%%%%%%%%%%%%
 %% Crop range
@@ -27,20 +69,152 @@ addpath(genpath(bassReconDir));
 cropRange = 0; % 0: no crop; 1: manual crop range; [2 x 2]: crop limits
 %% %%%%%%%%%%
 
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%
 %% Recon file by file
 %%%%%%%%%%%%%%%%%%%%%
 % see takoyaki:/local/users/Proulx-S/db/multiVENC_sub01
-dataFiles = dir(fullfile(pwd, 'raw', '*.dat'));
+dataFiles = dir(fullfile(projectStorage, 'raw', '*.dat'));
 dataFiles(~contains({dataFiles.name},'BEAT_FQ')) = [];
 dataFiles(1) = [];
+dataRefFiles = dir(fullfile([projectStorage '_eccRef'],'raw','*.dat'));
+dataRefFiles = flip(dataRefFiles);
 
-coilMethod = 'bartEspirit';
+
+
+
+% % Check spatial correspondence
+% dir(fullfile(projectStorage, 'nii'))
+% dir(fullfile(projectStorage, 'nii', '*','*','*','*'))
+% % confirmed on Sherlock
+
+
+
+
+
+coilMethod     = 'bartEspirit';
+dataFilesRecon = cell(size(dataFiles));
 for iFile = 1:length(dataFiles)
-    fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
-    [outName,cropRange] = simpleRecon(fullfile(pwd, 'raw', dataFiles(iFile).name),coilMethod,0,0);
+    outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
+    if exist(outName,'file')
+        fprintf('File already exists: %s\n', outName);
+    else
+        fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
+        [outName,cropRange] = simpleRecon(fullfile(dataFiles(iFile).folder, dataFiles(iFile).name),coilMethod,0,0);
+    end
+    dataFilesRecon{iFile} = outName;
+end
+dataRefFilesRecon = cell(size(dataRefFiles));
+for iFile = 1:length(dataRefFiles)
+    outName = fullfile(dataRefFiles(iFile).folder,replace(dataRefFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
+    if exist(outName,'file')
+        fprintf('File already exists: %s\n', outName);
+    else
+        fprintf('Processing file %d of %d: %s\n', iFile, length(dataRefFiles), dataRefFiles(iFile).name);
+        [outName,cropRange] = simpleRecon(fullfile(dataRefFiles(iFile).folder, dataRefFiles(iFile).name),coilMethod,0,0);
+    end
+    dataRefFilesRecon{iFile} = outName;
 end
 %% %%%%%%%%%%%%%%%%%%
 
 
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Confirm object-independence of eddy-current-related background phase
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+iFile = 1;
+data    = load(dataFilesRecon{iFile});
+dataRef = load(dataRefFilesRecon{iFile});
+
+
+size(data.img)
+size(data.venc)
+size(dataRef.img)
+size(dataRef.venc)
+
+
+return
+
+rep = 3;
+
+figure;
+hT = tiledlayout(2,2); hT.TileSpacing = 'compact'; hT.Padding = 'compact'; ax = {}; colormap gray
+ax{end+1} = nexttile(hT,1);
+imagesc(abs(data.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1))); axis image;
+title('data');
+ax{end+1} = nexttile(hT,2);
+imagesc(abs(dataRef.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1))); axis image;
+title('dataRef');
+ax{end+1} = nexttile(hT,3);
+imagesc(angle(data.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1)),[-pi pi]); axis image;
+title('data');
+ax{end+1} = nexttile(hT,4);
+imagesc(angle(dataRef.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1)),[-pi pi]); axis image;
+title('dataRef');
+
+
+whos data dataRef
+
+
+
+
+
+
+
+figure;
+hT = tiledlayout(2,6); hT.TileSpacing = 'compact'; hT.Padding = 'compact';
+ax = {};
+
+tmp = mean(data.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
+ax{end+1} = nexttile(hT);
+imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
+ax{end}.Colormap = gray;
+title('mag'); ylabel('in vivo');
+
+tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
+for i = 2:6
+    ax{end+1} = nexttile(hT);
+    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
+    title(['venc=' num2str(data.venc(i)), 'cm/s']);
+end
+ylabel(colorbar, 'phase difference [rad]');
+
+
+
+tmp = mean(dataRef.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
+ax{end+1} = nexttile(hT);
+imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
+ax{end}.Colormap = gray;
+title('mag'); ylabel('phantom reference');
+
+tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
+for i = 2:6
+    ax{end+1} = nexttile(hT);
+    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
+    title(['venc=' num2str(dataRef.venc(i)), 'cm/s']);
+end
+ylabel(colorbar, 'phase difference [rad]');
+
+set([ax{:}],'XTick',[],'YTick',[]);
+
+
+
+
+tmp = mean(dataRef.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
+tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
+for i = 2:6
+    ax{end+1} = nexttile(hT);
+    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image; colormap hsv;
+    title(['dataRef ', num2str(i)]);
+end
+colorbar
+
+
+
+ax{end}.XTick = []; ax{end}.YTick = [];
