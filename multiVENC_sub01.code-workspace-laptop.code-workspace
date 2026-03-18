@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../tools/util"
+		},
+		{
+			"path": "../../tools/bassRecon"
+		}
+	],
+	"settings": {}
+}

@@ -27,8 +27,8 @@ if strcmp(os,'Linux') && strcmp(host,'takoyaki') && strcmp(user,'sebp')
     toolDir        = '/scratch/users/Proulx-S/tools';            if ~exist(toolDir,'dir');        mkdir(toolDir);        end
 else
     envId = 2;
-    storageDrive   = '/Users/sebastienproulx/';
-    scratchDrive   = '/Users/sebastienproulx/';
+    storageDrive   = '/Users/sebastienproulx/db/';
+    scratchDrive   = '/Users/sebastienproulx/db/';
     projectCode    = fullfile(scratchDrive, projectName);        if ~exist(projectCode,'dir');    mkdir(projectCode);    end
     projectStorage = fullfile(storageDrive, projectName);        if ~exist(projectStorage,'dir'); mkdir(projectStorage); end
     projectScratch = fullfile(scratchDrive, projectName, 'tmp'); if ~exist(projectScratch,'dir'); mkdir(projectScratch); end
@@ -71,7 +71,7 @@ cropRange = 0; % 0: no crop; 1: manual crop range; [2 x 2]: crop limits
 
 
 
-
+return;
 
 
 %%%%%%%%%%%%%%%%%%%%%
@@ -123,7 +123,7 @@ end
 
 
 
-
+if 0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Confirm object-independence of eddy-current-related background phase
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -139,7 +139,7 @@ size(dataRef.img)
 size(dataRef.venc)
 
 
-return
+
 
 rep = 3;
 
@@ -160,10 +160,6 @@ title('dataRef');
 
 
 whos data dataRef
-
-
-
-
 
 
 
@@ -218,3 +214,86 @@ colorbar
 
 
 ax{end}.XTick = []; ax{end}.YTick = [];
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Venc-dependent background phase is receive-channel-independent
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+load('tmp.mat')
+whos img1 img2 iCoil1 iCoil2
+clear iCoil1 iCoil2
+img1 = mean(img1,11);
+img2 = mean(img2,11);
+img1 = img1(:,:,:,:,:,:,2:end) ./ exp(1i*angle(img1(:,:,:,:,:,:,1)));
+img2 = img2(:,:,:,:,:,:,2:end) ./ exp(1i*angle(img2(:,:,:,:,:,:,1)));
+
+size(img1)
+size(img2)
+
+
+close all
+curImg = img1;
+for vencIdx = 1:size(curImg,7)
+    figure;
+    nRows = 4;
+    nCols = ceil(size(curImg,4)./nRows);
+    hT = tiledlayout(nRows,nCols); hT.TileSpacing = 'compact'; hT.Padding = 'compact'; ax = {};
+    for coilIdx = 1:size(curImg,4)
+        ax{end+1} = nexttile(hT);
+        imagesc(angle(curImg(:,:,:,coilIdx,:,:,vencIdx)),[-pi/2 pi/2]); axis image;
+        % title(['coil=' num2str(coilIdx)]);
+    end
+    set([ax{:}],'XTick',[],'YTick',[],'Colormap',hsv);
+    ylabel(colorbar, 'phase difference [rad]');
+    title(hT, ['venc=' num2str(vencIdx) 'cm/s']);
+end
+
+
+
+
+set([ax{:}],'XTick',[],'YTick',[]);
+
+
+
+
+
+for coilIdx = 3:52
+
+figure;
+hT = tiledlayout(2,6); hT.TileSpacing = 'compact'; hT.Padding = 'compact';
+ax = {};
+
+tmp = img1(:,:,:,coilIdx,:,:,:);
+ax{end+1} = nexttile(hT);
+imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
+ax{end}.Colormap = gray;
+title('mag'); ylabel('in vivo');
+
+for i = 1:5
+    ax{end+1} = nexttile(hT);
+    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
+    % title(['venc=' num2str(data.venc(i)), 'cm/s']);
+end
+ylabel(colorbar, 'phase difference [rad]');
+
+
+
+tmp = img2(:,:,:,coilIdx,:,:,:);
+ax{end+1} = nexttile(hT);
+imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
+ax{end}.Colormap = gray;
+ylabel('phantom reference');
+
+for i = 1:5
+    ax{end+1} = nexttile(hT);
+    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
+    % title(['venc=' num2str(dataRef.venc(i)), 'cm/s']);
+end
+ylabel(colorbar, 'phase difference [rad]');
+
+set([ax{:}],'XTick',[],'YTick',[]);
+
+keyboard;
+end
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
