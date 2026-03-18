@@ -81,8 +81,10 @@ return;
 dataFiles = dir(fullfile(projectStorage, 'raw', '*.dat'));
 dataFiles(~contains({dataFiles.name},'BEAT_FQ')) = [];
 dataFiles(1) = [];
+dataFiles = fullfile({dataFiles.folder},{dataFiles.name})';
 dataRefFiles = dir(fullfile([projectStorage '_eccRef'],'raw','*.dat'));
 dataRefFiles = flip(dataRefFiles);
+dataRefFiles = fullfile({dataRefFiles.folder},{dataRefFiles.name})';
 
 
 
@@ -99,12 +101,16 @@ dataRefFiles = flip(dataRefFiles);
 coilMethod     = 'bartEspirit';
 dataFilesRecon = cell(size(dataFiles));
 for iFile = 1:length(dataFiles)
-    outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
+    % outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
+    outName = replace(dataFiles{iFile},'.dat',['_fft_coilComb-' coilMethod '.mat']);
+    % outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
     if exist(outName,'file')
         fprintf('File already exists: %s\n', outName);
     else
-        fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
-        [outName,cropRange] = simpleRecon(fullfile(dataFiles(iFile).folder, dataFiles(iFile).name),coilMethod,0,0);
+        % fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
+        % [outName,cropRange] = simpleRecon(fullfile(dataFiles(iFile).folder, dataFiles(iFile).name),coilMethod,0,0);
+        fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles{iFile});
+        [outName,cropRange] = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,cropRange)
     end
     dataFilesRecon{iFile} = outName;
 end
