@@ -57,23 +57,6 @@ info.toClean = {};
 
 
 
-
-
-
-
-
-%%%%%%%%%%%%%
-%% Crop range
-%%%%%%%%%%%%%
-% cropRange =[1 208; 34 150]; % tight crop of the agar body
-cropRange = 0; % 0: no crop; 1: manual crop range; [2 x 2]: crop limits
-%% %%%%%%%%%%
-
-
-
-return;
-
-
 %%%%%%%%%%%%%%%%%%%%%
 %% Recon file by file
 %%%%%%%%%%%%%%%%%%%%%
@@ -96,7 +79,7 @@ dataRefFiles = fullfile({dataRefFiles.folder},{dataRefFiles.name})';
 
 
 
-
+return
 
 coilMethod     = 'bartEspirit';
 dataFilesRecon = cell(size(dataFiles));
@@ -110,7 +93,7 @@ for iFile = 1:length(dataFiles)
         % fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
         % [outName,cropRange] = simpleRecon(fullfile(dataFiles(iFile).folder, dataFiles(iFile).name),coilMethod,0,0);
         fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles{iFile});
-        [outName,cropRange] = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,cropRange)
+        [outName,cropRange] = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,[],[],1)
     end
     dataFilesRecon{iFile} = outName;
 end
