@@ -64,9 +64,11 @@ info.toClean = {};
 dataFiles = dir(fullfile(projectStorage, 'raw', '*.dat'));
 dataFiles(~contains({dataFiles.name},'BEAT_FQ')) = [];
 dataFiles(1) = [];
+dataRefFiles = dir(fullfile([projectStorage '_phaseRef'],'raw','*.dat'));
+dataRefFiles = dataRefFiles;
+{dataFiles.name}';
+{dataRefFiles.name}';
 dataFiles = fullfile({dataFiles.folder},{dataFiles.name})';
-dataRefFiles = dir(fullfile([projectStorage '_eccRef'],'raw','*.dat'));
-dataRefFiles = flip(dataRefFiles);
 dataRefFiles = fullfile({dataRefFiles.folder},{dataRefFiles.name})';
 
 
@@ -83,7 +85,7 @@ end
 %% %%%%%%%%%%%%%%%%%%
 
 
-
+return
 
 for iFile = 1:length(dataFiles)
     load(dataFilesRecon{iFile});
