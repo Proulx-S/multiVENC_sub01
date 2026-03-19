@@ -70,219 +70,64 @@ dataRefFiles = flip(dataRefFiles);
 dataRefFiles = fullfile({dataRefFiles.folder},{dataRefFiles.name})';
 
 
-
-
 % % Check spatial correspondence
 % dir(fullfile(projectStorage, 'nii'))
 % dir(fullfile(projectStorage, 'nii', '*','*','*','*'))
 % % confirmed on Sherlock
 
-
-
-return
-
 coilMethod     = 'bartEspirit';
 dataFilesRecon = cell(size(dataFiles));
 for iFile = 1:length(dataFiles)
-    % outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
-    outName = replace(dataFiles{iFile},'.dat',['_fft_coilComb-' coilMethod '.mat']);
-    % outName = fullfile(dataFiles(iFile).folder,replace(dataFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
-    if exist(outName,'file')
-        fprintf('File already exists: %s\n', outName);
-    else
-        % fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles(iFile).name);
-        % [outName,cropRange] = simpleRecon(fullfile(dataFiles(iFile).folder, dataFiles(iFile).name),coilMethod,0,0);
-        fprintf('Processing file %d of %d: %s\n', iFile, length(dataFiles), dataFiles{iFile});
-        [outName,cropRange] = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,[],[],1)
-    end
-    dataFilesRecon{iFile} = outName;
-end
-dataRefFilesRecon = cell(size(dataRefFiles));
-for iFile = 1:length(dataRefFiles)
-    outName = fullfile(dataRefFiles(iFile).folder,replace(dataRefFiles(iFile).name,'.dat',['_fft_coilComb-' coilMethod '.mat']));
-    if exist(outName,'file')
-        fprintf('File already exists: %s\n', outName);
-    else
-        fprintf('Processing file %d of %d: %s\n', iFile, length(dataRefFiles), dataRefFiles(iFile).name);
-        [outName,cropRange] = simpleRecon(fullfile(dataRefFiles(iFile).folder, dataRefFiles(iFile).name),coilMethod,0,0);
-    end
-    dataRefFilesRecon{iFile} = outName;
+    dataFilesRecon{iFile} = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,[],[],1);
 end
 %% %%%%%%%%%%%%%%%%%%
 
 
 
-if 0
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Confirm object-independence of eddy-current-related background phase
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-iFile = 1;
-data    = load(dataFilesRecon{iFile});
-dataRef = load(dataRefFilesRecon{iFile});
+for iFile = 1:length(dataFiles)
+    load(dataFilesRecon{iFile});
+    img = img./exp(1i*angle(mean(img(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:),11)));
+    datUncorrected = load(replace(imgInfo.datFile,'.dat','.mat'));
+    imgUncorrected = datUncorrected.img./exp(1i*angle(mean(datUncorrected.img(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:),11)));
+    datUncorrectedPhaseRef = load(replace(imgInfo.datPhaseFile,'.dat','.mat'));
+    imgUncorrectedPhaseRef = datUncorrectedPhaseRef.img./exp(1i*angle(mean(datUncorrectedPhaseRef.img(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:),11)));
+    figure('MenuBar', 'none','ToolBar', 'none');
+    hT = tiledlayout(4,size(img,7)); hT.TileSpacing = 'compact'; hT.Padding = 'compact'; hT.TileIndexing = 'columnmajor';
+    ax1 = {};
+    ax2 = {};
+    ax3 = {};
+    ax4 = {};
+    for iSet = 1:size(img,7)
 
+        ax1{end+1} = nexttile(hT);
+        imagesc(abs(mean(img(:,:,:,:,:,:,iSet,:,:,:,:,:,:,:,:,:),11))); axis image; drawnow;
+        ax1{end}.Colormap = gray;
+        title(ax1{end},['venc=' num2str(imgInfo.vencList(iSet)) ' cm/s']);
+        if iSet == 1; ylabel(ax1{end},'corrected'); end;
+        if iSet == size(img,7); ylabel(colorbar,'mag'); end;
 
-size(data.img)
-size(data.venc)
-size(dataRef.img)
-size(dataRef.venc)
+        ax2{end+1} = nexttile(hT);
+        imagesc(angle(mean(imgUncorrected(:,:,:,:,:,:,iSet,:,:,:,:,:,:,:,:,:),11)),[-pi pi]); axis image; drawnow;
+        ax2{end}.Colormap = hsv;
+        if iSet == 1; ylabel(ax2{end},'uncorrected'); end;
+        if iSet == size(img,7); ylabel(colorbar,'phase difference'); end;
 
+        ax3{end+1} = nexttile(hT);
+        imagesc(angle(mean(imgUncorrectedPhaseRef(:,:,:,:,:,:,iSet,:,:,:,:,:,:,:,:,:),11)),[-pi pi]); axis image; drawnow;
+        ax3{end}.Colormap = hsv;
+        if iSet == 1; ylabel(ax3{end},'reference'); end;
+        if iSet == size(img,7); ylabel(colorbar,'phase difference'); end;
 
+        ax4{end+1} = nexttile(hT);
+        imagesc(angle(mean(img(:,:,:,:,:,:,iSet,:,:,:,:,:,:,:,:,:),11)),[-pi pi]); axis image; drawnow;
+        ax4{end}.Colormap = hsv;
+        if iSet == 1; ylabel(ax4{end},'corrected'); end;
+        if iSet == size(img,7); ylabel(colorbar,'phase difference'); end;
 
-
-rep = 3;
-
-figure;
-hT = tiledlayout(2,2); hT.TileSpacing = 'compact'; hT.Padding = 'compact'; ax = {}; colormap gray
-ax{end+1} = nexttile(hT,1);
-imagesc(abs(data.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1))); axis image;
-title('data');
-ax{end+1} = nexttile(hT,2);
-imagesc(abs(dataRef.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1))); axis image;
-title('dataRef');
-ax{end+1} = nexttile(hT,3);
-imagesc(angle(data.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1)),[-pi pi]); axis image;
-title('data');
-ax{end+1} = nexttile(hT,4);
-imagesc(angle(dataRef.img(:,:,1,1,1,1,1,1,1,1,rep,1,1,1,1,1)),[-pi pi]); axis image;
-title('dataRef');
-
-
-whos data dataRef
-
-
-
-figure;
-hT = tiledlayout(2,6); hT.TileSpacing = 'compact'; hT.Padding = 'compact';
-ax = {};
-
-tmp = mean(data.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
-ax{end+1} = nexttile(hT);
-imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
-ax{end}.Colormap = gray;
-title('mag'); ylabel('in vivo');
-
-tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
-for i = 2:6
-    ax{end+1} = nexttile(hT);
-    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
-    title(['venc=' num2str(data.venc(i)), 'cm/s']);
-end
-ylabel(colorbar, 'phase difference [rad]');
-
-
-
-tmp = mean(dataRef.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
-ax{end+1} = nexttile(hT);
-imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
-ax{end}.Colormap = gray;
-title('mag'); ylabel('phantom reference');
-
-tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
-for i = 2:6
-    ax{end+1} = nexttile(hT);
-    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
-    title(['venc=' num2str(dataRef.venc(i)), 'cm/s']);
-end
-ylabel(colorbar, 'phase difference [rad]');
-
-set([ax{:}],'XTick',[],'YTick',[]);
-
-
-
-
-tmp = mean(dataRef.img(:,:,1,1,1,1,:,1,1,1,:,1,1,1,1,1),11);
-tmp = tmp ./ exp(1i*angle(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:)));
-for i = 2:6
-    ax{end+1} = nexttile(hT);
-    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image; colormap hsv;
-    title(['dataRef ', num2str(i)]);
-end
-colorbar
-
-
-
-ax{end}.XTick = []; ax{end}.YTick = [];
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Venc-dependent background phase is receive-channel-independent
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-load('tmp.mat')
-whos img1 img2 iCoil1 iCoil2
-clear iCoil1 iCoil2
-img1 = mean(img1,11);
-img2 = mean(img2,11);
-img1 = img1(:,:,:,:,:,:,2:end) ./ exp(1i*angle(img1(:,:,:,:,:,:,1)));
-img2 = img2(:,:,:,:,:,:,2:end) ./ exp(1i*angle(img2(:,:,:,:,:,:,1)));
-
-size(img1)
-size(img2)
-
-
-close all
-curImg = img1;
-for vencIdx = 1:size(curImg,7)
-    figure;
-    nRows = 4;
-    nCols = ceil(size(curImg,4)./nRows);
-    hT = tiledlayout(nRows,nCols); hT.TileSpacing = 'compact'; hT.Padding = 'compact'; ax = {};
-    for coilIdx = 1:size(curImg,4)
-        ax{end+1} = nexttile(hT);
-        imagesc(angle(curImg(:,:,:,coilIdx,:,:,vencIdx)),[-pi/2 pi/2]); axis image;
-        % title(['coil=' num2str(coilIdx)]);
     end
-    set([ax{:}],'XTick',[],'YTick',[],'Colormap',hsv);
-    ylabel(colorbar, 'phase difference [rad]');
-    title(hT, ['venc=' num2str(vencIdx) 'cm/s']);
+    cLim = get([ax1{:}],'CLim'); cLim = [min([cLim{:}]) max([cLim{:}])*0.5]; set([ax1{:}],'CLim',cLim);
+    set([ax1{:} ax2{:} ax3{:} ax4{:}],'DataAspectRatio',[imgInfo.fov./imgInfo.mat 1],'XTick',[],'YTick',[]);
 end
 
 
-
-
-set([ax{:}],'XTick',[],'YTick',[]);
-
-
-
-
-
-for coilIdx = 3:52
-
-figure;
-hT = tiledlayout(2,6); hT.TileSpacing = 'compact'; hT.Padding = 'compact';
-ax = {};
-
-tmp = img1(:,:,:,coilIdx,:,:,:);
-ax{end+1} = nexttile(hT);
-imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
-ax{end}.Colormap = gray;
-title('mag'); ylabel('in vivo');
-
-for i = 1:5
-    ax{end+1} = nexttile(hT);
-    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
-    % title(['venc=' num2str(data.venc(i)), 'cm/s']);
-end
-ylabel(colorbar, 'phase difference [rad]');
-
-
-
-tmp = img2(:,:,:,coilIdx,:,:,:);
-ax{end+1} = nexttile(hT);
-imagesc(abs(tmp(:,:,:,:,:,:,1,:,:,:,:,:,:,:,:,:))); axis image;
-ax{end}.Colormap = gray;
-ylabel('phantom reference');
-
-for i = 1:5
-    ax{end+1} = nexttile(hT);
-    imagesc(angle(tmp(:,:,:,:,:,:,i,:,:,:,:,:,:,:,:,:)),[-pi pi]); axis image;
-    % title(['venc=' num2str(dataRef.venc(i)), 'cm/s']);
-end
-ylabel(colorbar, 'phase difference [rad]');
-
-set([ax{:}],'XTick',[],'YTick',[]);
-
-keyboard;
-end
-
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
