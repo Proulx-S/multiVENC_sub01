@@ -54,6 +54,31 @@ info.project.storage = projectStorage;
 info.project.scratch = projectScratch;
 info.toClean = {};
 
+return
+
+%%%%%%%%%%%%%%%%%%%%%
+%% Convert dcm to nii
+%%%%%%%%%%%%%%%%%%%%%
+dcmDir  = fullfile(projectStorage, 'dcm');
+nii2Dir = fullfile(projectStorage, 'nii2');
+if ~exist(nii2Dir, 'dir'); mkdir(nii2Dir); end
+system(['dcm2niix -o ' nii2Dir ' -f %3s.%d -z y -r n ' dcmDir]);
+%% %%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%
+%% info
+%%%%%%%
+tmp = dir(fullfile(dcmDir,'*','*','BEAT_FQ_PLAN_MSUM_36001_MR')); tmp([tmp.isdir]) = [];
+tmp = fullfile({tmp.folder},{tmp.name})';
+tmp = tmp{1};
+dcminfo = dicominfo(tmp);
+
+dcminfo.MagneticFieldStrength; % MHz
+gamma = 2.6752218708e8/(2*pi); % Hz/T
+dcminfo.ImagingFrequency*1e6 / gamma % T
+%% %%%%
+
 
 
 
@@ -77,10 +102,11 @@ dataRefFiles = fullfile({dataRefFiles.folder},{dataRefFiles.name})';
 % dir(fullfile(projectStorage, 'nii', '*','*','*','*'))
 % % confirmed on Sherlock
 
+forceThis = 0;
 coilMethod     = 'bartEspirit';
 dataFilesRecon = cell(size(dataFiles));
 for iFile = 1:length(dataFiles)
-    dataFilesRecon{iFile} = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,[],[],1);
+    dataFilesRecon{iFile} = recon(dataFiles{iFile},[],dataRefFiles{iFile},coilMethod,[],[],forceThis);
 end
 %% %%%%%%%%%%%%%%%%%%
 
